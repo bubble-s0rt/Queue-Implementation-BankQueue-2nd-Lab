@@ -1,5 +1,5 @@
 public class Customer {
-    int arrivalTime;
+    private int arrivalTime;
 
     public Customer(int arrivalTime) {
         this.arrivalTime = arrivalTime;
