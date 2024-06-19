@@ -4,7 +4,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class QueueSimulator {
-    private final int simulationTime;
+    private final int simulationTime; 
     private final BankQueue bankQueue;
     private int totalCustomers;
     private int customersServed;
@@ -13,7 +13,7 @@ public class QueueSimulator {
     private final Random random;
 
    
-    private final int scaleFactor = 100;
+    private final int scaleFactor = 10;
 
     public QueueSimulator(int simulationTime, int numberOfTellers, int maxQueueLength) {
         this.simulationTime = simulationTime;
@@ -28,7 +28,7 @@ public class QueueSimulator {
     public void startSimulation() {
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(bankQueue.getNumberOfTellers() + 1);
 
-      
+       
         executor.scheduleAtFixedRate(() -> {
             int arrivalTime = (int) (System.currentTimeMillis() / 1000);
             int serviceTime = random.nextInt(241) + 60; 
@@ -38,7 +38,7 @@ public class QueueSimulator {
             } else {
                 customersLeft++;
             }
-        }, 0, (random.nextInt(41) + 20) * scaleFactor, TimeUnit.MILLISECONDS);
+        }, 0, (random.nextInt(41) + 20) * scaleFactor, TimeUnit.MILLISECONDS); 
 
        
         for (int i = 0; i < bankQueue.getNumberOfTellers(); i++) {
@@ -56,7 +56,7 @@ public class QueueSimulator {
             }, 0, 1, TimeUnit.MILLISECONDS);
         }
 
-        
+       
         executor.schedule(() -> {
             executor.shutdown();
             printResults();
@@ -67,8 +67,8 @@ public class QueueSimulator {
         System.out.println("Simulation Results:");
         System.out.println("Total customers arrived: " + totalCustomers);
         System.out.println("Total customers served: " + customersServed);
-        System.out.println("Total customers left without being served: " + customersLeft);
-        System.out.println("Average service time: " + (customersServed > 0 ? totalServiceTime / customersServed / 60 : 0) + " minutes");
+        System.out.println("Total customers left without being served: " + (totalCustomers - customersServed));
+        System.out.println("Average service time: " + (customersServed > 0 ? (totalServiceTime / customersServed) / 60 : 0) + " minutes");
         System.out.println("Total simulation time: " + simulationTime + " minutes");
     }
 
