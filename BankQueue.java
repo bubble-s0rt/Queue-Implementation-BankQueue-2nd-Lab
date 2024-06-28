@@ -1,52 +1,66 @@
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Semaphore;
 
 public class BankQueue {
     private final int maxQueueLength;
-    private final Queue<Customer> queue;
-    private final int numberOfTellers;
-    private final Lock queueLock;
+     private final Queue<Customer> queue;
+       private final int numberOfTellers;
+        private final Semaphore queueSemaphore;
 
     public BankQueue(int numberOfTellers, int maxQueueLength) {
         this.numberOfTellers = numberOfTellers;
         this.maxQueueLength = maxQueueLength;
         this.queue = new LinkedList<>();
-        this.queueLock = new ReentrantLock();
+        this.queueSemaphore = new Semaphore(1);
     }
 
     public boolean addCustomer(Customer customer) {
-        queueLock.lock();
+        boolean added = false;
         try {
+            queueSemaphore.acquire();
             if (queue.size() < maxQueueLength) {
                 queue.add(customer);
-                return true;
+                added = true;
             } else {
                 customer.setServed(false);
-                return false;
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         } finally {
-            queueLock.unlock();
+            queueSemaphore.release();
         }
+        return added;
     }
 
     public Customer getNextCustomer() {
-        queueLock.lock();
+        Customer customer = null;
         try {
-            return queue.poll();
-        } finally {
-            queueLock.unlock();
+            queueSemaphore.acquire();
+            customer = queue.poll();
+        } catch (InterruptedException e) 
+        {
+            Thread.currentThread().interrupt();
+        } finally
+         {
+              queueSemaphore.release();
         }
+        return customer;
     }
 
     public int getQueueSize() {
-        queueLock.lock();
+        int size = 0;
         try {
-            return queue.size();
-        } finally {
-            queueLock.unlock();
+              queueSemaphore.acquire();
+            size = queue.size();
+        } catch (InterruptedException e) 
+        {
+            Thread.currentThread().interrupt();
+        } finally
+         {
+            queueSemaphore.release();
         }
+        return size;
     }
 
     public int getNumberOfTellers() {
