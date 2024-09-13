@@ -1,0 +1,84 @@
+// Source code is decompiled from a .class file using FernFlower decompiler.
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.Semaphore;
+
+public class GroceryQueues {
+   private final int maxQueueLength;
+   private final List<Queue<Customer>> queues;
+   private final int numberOfCashiers;
+   private final Semaphore queueSemaphore;
+
+   public GroceryQueues(int var1, int var2) {
+      this.numberOfCashiers = var1;
+      this.maxQueueLength = var2;
+      this.queues = new ArrayList();
+
+      for(int var3 = 0; var3 < var1; ++var3) {
+         this.queues.add(new LinkedList());
+      }
+
+      this.queueSemaphore = new Semaphore(1);
+   }
+
+   public boolean addCustomer(Customer var1) {
+      boolean var2 = false;
+
+      try {
+         this.queueSemaphore.acquire();
+         int var3 = this.getMinQueue();
+         if (((Queue)this.queues.get(var3)).size() < this.maxQueueLength) {
+            ((Queue)this.queues.get(var3)).add(var1);
+            System.out.println("Customer added to cashier " + (var3 + 1) + "'s queue.");
+            var2 = true;
+         } else {
+            var1.setLeftQueue(true);
+            System.out.println("Customer left queue due to full capacity.");
+         }
+      } catch (InterruptedException var7) {
+         Thread.currentThread().interrupt();
+      } finally {
+         this.queueSemaphore.release();
+      }
+
+      return var2;
+   }
+
+   public Customer getNextCustomer(int var1) {
+      Customer var2 = null;
+
+      try {
+         this.queueSemaphore.acquire();
+         var2 = (Customer)((Queue)this.queues.get(var1)).poll();
+         if (var2 != null) {
+            System.out.println("Cashier " + (var1 + 1) + " serving a customer.");
+         }
+      } catch (InterruptedException var7) {
+         Thread.currentThread().interrupt();
+      } finally {
+         this.queueSemaphore.release();
+      }
+
+      return var2;
+   }
+
+   private int getMinQueue() {
+      int var1 = 0;
+      int var2 = ((Queue)this.queues.get(0)).size();
+
+      for(int var3 = 1; var3 < this.queues.size(); ++var3) {
+         if (((Queue)this.queues.get(var3)).size() < var2) {
+            var1 = var3;
+            var2 = ((Queue)this.queues.get(var3)).size();
+         }
+      }
+
+      return var1;
+   }
+
+   public int getNumberOfCashiers() {
+      return this.numberOfCashiers;
+   }
+}
