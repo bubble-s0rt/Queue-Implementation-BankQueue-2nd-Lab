@@ -2,58 +2,76 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class QueueSimulator {
-    private final int simulationTime;
+    private final int simulationTime;  // In minutes
     private final BankQueue bankQueue;
     private final GroceryQueues groceryQueues;
-    private int totalCustomers;
-    private int customersServed;
-    private int customersLeft;
-    private int totalServiceTime;
+    
+    // BankQueue counters
+    private final AtomicInteger totalBankCustomers;
+    private final AtomicInteger bankCustomersServed;
+    private final AtomicInteger bankCustomersLeft;
+    private final AtomicInteger totalBankServiceTime;
+    
+    // GroceryQueues counters
+    private final AtomicInteger totalGroceryCustomers;
+    private final AtomicInteger groceryCustomersServed;
+    private final AtomicInteger groceryCustomersLeft;
+    private final AtomicInteger totalGroceryServiceTime;
+    
     private final Random random;
-
-    private final int scaleFactor = 10;  // For time scaling
+    private final int scaleFactor = 10;  // Scaling factor for faster simulation
 
     public QueueSimulator(int simulationTime, int numberOfTellers, int maxQueueLength, int numberOfCashiers, int groceryMaxQueueLength) {
         this.simulationTime = simulationTime;
         this.bankQueue = new BankQueue(numberOfTellers, maxQueueLength);
         this.groceryQueues = new GroceryQueues(numberOfCashiers, groceryMaxQueueLength);
-        this.totalCustomers = 0;
-        this.customersServed = 0;
-        this.customersLeft = 0;
-        this.totalServiceTime = 0;
+        
+        // Initialize counters for BankQueue
+        this.totalBankCustomers = new AtomicInteger(0);
+        this.bankCustomersServed = new AtomicInteger(0);
+        this.bankCustomersLeft = new AtomicInteger(0);
+        this.totalBankServiceTime = new AtomicInteger(0);
+        
+        // Initialize counters for GroceryQueues
+        this.totalGroceryCustomers = new AtomicInteger(0);
+        this.groceryCustomersServed = new AtomicInteger(0);
+        this.groceryCustomersLeft = new AtomicInteger(0);
+        this.totalGroceryServiceTime = new AtomicInteger(0);
+        
         this.random = new Random();
     }
 
     public void startSimulation() {
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(bankQueue.getNumberOfTellers() + groceryQueues.getNumberOfCashiers() + 2);
 
-        // Task for customer arrival for BankQueue
+        // Task for customer arrival in BankQueue
         executor.scheduleAtFixedRate(() -> {
             int arrivalTime = (int) (System.currentTimeMillis() / 1000);
-            int serviceTime = random.nextInt(241) + 60;
+            int serviceTime = random.nextInt(241) + 60;  // Service time between 60s to 300s
             Customer customer = new Customer(arrivalTime, serviceTime);
             if (bankQueue.addCustomer(customer)) {
-                totalCustomers++;
+                totalBankCustomers.incrementAndGet();
             } else {
-                customersLeft++;
+                bankCustomersLeft.incrementAndGet();
             }
         }, 0, (random.nextInt(41) + 20) * scaleFactor, TimeUnit.MILLISECONDS);
 
-        // Task for customer arrival for GroceryQueues
+        // Task for customer arrival in GroceryQueues
         executor.scheduleAtFixedRate(() -> {
             int arrivalTime = (int) (System.currentTimeMillis() / 1000);
             int serviceTime = random.nextInt(241) + 60;
             Customer customer = new Customer(arrivalTime, serviceTime);
             if (groceryQueues.addCustomer(customer)) {
-                totalCustomers++;
+                totalGroceryCustomers.incrementAndGet();
             } else {
-                customersLeft++;
+                groceryCustomersLeft.incrementAndGet();
             }
         }, 0, (random.nextInt(41) + 20) * scaleFactor, TimeUnit.MILLISECONDS);
 
-        // Task for BankQueue tellers
+        // Task for serving customers in BankQueue
         for (int i = 0; i < bankQueue.getNumberOfTellers(); i++) {
             executor.scheduleAtFixedRate(() -> {
                 Customer customer = bankQueue.getNextCustomer();
@@ -63,13 +81,13 @@ public class QueueSimulator {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                    totalServiceTime += customer.getServiceTime();
-                    customersServed++;
+                    totalBankServiceTime.addAndGet(customer.getServiceTime());
+                    bankCustomersServed.incrementAndGet();
                 }
             }, 0, 1, TimeUnit.MILLISECONDS);
         }
 
-        // Task for GroceryQueues cashiers
+        // Task for serving customers in GroceryQueues
         for (int i = 0; i < groceryQueues.getNumberOfCashiers(); i++) {
             int cashierIndex = i;
             executor.scheduleAtFixedRate(() -> {
@@ -80,8 +98,8 @@ public class QueueSimulator {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                    totalServiceTime += customer.getServiceTime();
-                    customersServed++;
+                    totalGroceryServiceTime.addAndGet(customer.getServiceTime());
+                    groceryCustomersServed.incrementAndGet();
                 }
             }, 0, 1, TimeUnit.MILLISECONDS);
         }
@@ -97,16 +115,27 @@ public class QueueSimulator {
                 executor.shutdownNow();
             }
             printResults();
-        }, simulationTime * 60 * scaleFactor, TimeUnit.MILLISECONDS);
+        }, simulationTime * 60L * scaleFactor, TimeUnit.MILLISECONDS);
     }
 
     private void printResults() {
         System.out.println("Simulation Results:");
-        System.out.println("Total customers arrived: " + totalCustomers);
-        System.out.println("Total customers served: " + customersServed);
-        System.out.println("Total customers left without being served: " + customersLeft);
-        System.out.println("Average service time: " + (customersServed > 0 ? (totalServiceTime / customersServed) / scaleFactor : 0) + " minutes");
-        System.out.println("Total simulation time: " + simulationTime + " minutes");
+        
+        // BankQueue results
+        System.out.println("\n--- BankQueue Results ---");
+        System.out.println("Total customers arrived: " + totalBankCustomers.get());
+        System.out.println("Total customers served: " + bankCustomersServed.get());
+        System.out.println("Total customers left without being served: " + bankCustomersLeft.get());
+        System.out.println("Average service time: " + (bankCustomersServed.get() > 0 ? (totalBankServiceTime.get() / bankCustomersServed.get()) / scaleFactor : 0) + " seconds");
+        
+        // GroceryQueues results
+        System.out.println("\n--- GroceryQueues Results ---");
+        System.out.println("Total customers arrived: " + totalGroceryCustomers.get());
+        System.out.println("Total customers served: " + groceryCustomersServed.get());
+        System.out.println("Total customers left without being served: " + groceryCustomersLeft.get());
+        System.out.println("Average service time: " + (groceryCustomersServed.get() > 0 ? (totalGroceryServiceTime.get() / groceryCustomersServed.get()) / scaleFactor : 0) + " seconds");
+        
+        System.out.println("\nTotal simulation time: " + simulationTime + " minutes");
     }
 
     public static void main(String[] args) {
